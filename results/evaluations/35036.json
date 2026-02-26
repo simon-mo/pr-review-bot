@@ -1,0 +1,16 @@
+{
+  "pr_number": 35036,
+  "outcome_match": "correct",
+  "triage_match": "correct",
+  "comment_hits": 0,
+  "comment_misses": 0,
+  "false_alarms": 1,
+  "missed_issues": [],
+  "false_alarm_details": [
+    "Predicted a minor clarification question about attention group interaction with per-layer metadata. In reality, zero comments were left — the PR was self-merged with no review whatsoever."
+  ],
+  "skill_performance": {},
+  "overall_accuracy": 0.85,
+  "key_insight": "For project-lead self-merges on focused infrastructure PRs, the baseline prediction should be zero comments, not one. WoosukKwon's PRs in his own Model Runner V2 initiative are essentially rubber-stamped. The 'reviewDecision: REVIEW_REQUIRED' status is a repo policy artifact, not a signal of actual review friction.",
+  "hypothesis": "I hedged by predicting one minor comment because I lacked diff data and wanted to show engagement with the code. But the strongest signal here was author authority + fast merge pattern — when the project lead merges their own PR in 17 minutes with an empty description, the correct prediction is literally zero review activity. Future predictions for high-authority authors on their own feature branches should default to zero comments unless there's a concrete code-level reason to expect one. The false alarm came from pattern-matching on 'what reviewers usually ask about' rather than reading the social signal that no reviewer was going to engage at all."
+}
