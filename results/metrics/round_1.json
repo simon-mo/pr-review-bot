@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-02-26T09:08:41.351782",
+  "timestamp": "2026-02-26T12:59:10.602411",
   "round": 1,
-  "total_evaluated": 1,
+  "total_evaluated": 3,
   "outcome_accuracy": 1.0,
-  "triage_accuracy": 1.0,
-  "comment_precision": 0.0,
-  "comment_recall": 0.0,
-  "comment_f1": 0.0,
+  "triage_accuracy": 0.6666666666666666,
+  "comment_precision": 0.25,
+  "comment_recall": 0.5,
+  "comment_f1": 0.3333333333333333,
   "skill_performance": {},
-  "total_skills": 3
+  "total_skills": 6
 }
