@@ -11,23 +11,24 @@ DATA_DIR="data/prs"
 
 fetch_pr() {
     local pr=$1
+    local progress=${2:-}
     local dir="${DATA_DIR}/${pr}"
 
     if [[ -d "$dir" && -f "$dir/meta.json" ]]; then
-        echo "  [skip] PR #${pr} already fetched"
+        echo "  ${progress}[skip] PR #${pr} already fetched"
         return 0
     fi
 
     mkdir -p "$dir"
-    echo "  [fetch] PR #${pr}..."
+    echo "  ${progress}[fetch] PR #${pr}..."
 
     # Metadata
     gh pr view "$pr" --repo "$REPO" \
         --json number,title,state,body,author,labels,mergedAt,closedAt,createdAt,reviewDecision,additions,deletions,changedFiles,mergeCommit,headRefName,baseRefName \
-        > "$dir/meta.json" 2>/dev/null || { echo "  [error] Failed to fetch PR #${pr}"; rm -rf "$dir"; return 1; }
+        > "$dir/meta.json" 2>/dev/null || { echo "  ${progress}[error] Failed to fetch PR #${pr}"; rm -rf "$dir"; return 1; }
 
     # Description (extracted from meta for convenience)
-    python3 -c "
+    python -u -c "
 import json, sys
 with open('$dir/meta.json') as f:
     d = json.load(f)
@@ -39,7 +40,7 @@ print(d.get('body') or '(no description)')
 
     # Changed files list
     gh pr view "$pr" --repo "$REPO" --json files \
-        | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('files',[]),indent=2))" \
+        | python -u -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('files',[]),indent=2))" \
         > "$dir/files.json"
 
     # Reviews (approve/request changes/comment)
@@ -58,21 +59,29 @@ print(d.get('body') or '(no description)')
     gh api "repos/${REPO}/issues/${pr}/timeline" --paginate \
         2>/dev/null > "$dir/timeline.json" || echo "[]" > "$dir/timeline.json"
 
-    echo "  [done] PR #${pr}"
+    echo "  ${progress}[done] PR #${pr}" 1>&2
 }
 
 fetch_batch() {
     local count=${1:-50}
     local state=${2:-closed}
 
-    echo "Fetching list of ${count} ${state} PRs..."
+    echo "[$(date '+%H:%M:%S')] Sampling ${count} PRs (merged + closed + well-reviewed mix)..." 1>&2
+    # Random stratified sample — do not use chronological/PR-number order
+    local list
+    list=$(python -u utils.py sample-prs-to-fetch --count "$count" --repo "$REPO") || exit 1
+    local total
+    total=$(echo "$list" | grep -c . || echo 0)
+    echo "[$(date '+%H:%M:%S')] Fetching ${total} PRs (streaming progress below)..." 1>&2
 
-    # Get PR numbers
-    gh pr list --repo "$REPO" --state "$state" --limit "$count" \
-        --json number -q '.[].number' | while read -r pr; do
-        fetch_pr "$pr"
+    local i=0
+    while read -r pr; do
+        [[ -z "${pr:-}" ]] && continue
+        i=$((i + 1))
+        fetch_pr "$pr" "[${i}/${total}] "
         sleep 0.5  # Rate limit courtesy
-    done
+    done <<< "$list"
+    echo "[$(date '+%H:%M:%S')] Batch fetch complete." 1>&2
 }
 
 # Main
@@ -81,7 +90,7 @@ if [[ "${1:-}" == "--batch" ]]; then
     fetch_batch "${1:-50}" "${2:-closed}"
 else
     for pr in "$@"; do
-        fetch_pr "$pr"
+        fetch_pr "$pr" ""
         sleep 0.3
     done
 fi

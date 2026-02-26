@@ -8,9 +8,15 @@ set -euo pipefail
 echo "═══════════════════════════════════════════════════"
 echo "  PR Review Bot — Full Pipeline"
 echo "═══════════════════════════════════════════════════"
+echo ""
 
+echo "[$(date '+%H:%M:%S')] Step 1/3: Fetching PRs (random sample, streaming below)..."
 ./fetch.sh --batch 200 closed
+echo ""
+echo "[$(date '+%H:%M:%S')] Step 2/3: Training (streaming below)..."
 ./train.sh 10 15
+echo ""
+echo "[$(date '+%H:%M:%S')] Step 3/3: Holdout evaluation (streaming below)..."
 ./evaluate.sh 20
 
 echo ""

@@ -93,13 +93,13 @@ Git history tracks all changes.
 
 ```bash
 # After training
-python3 utils.py compute-metrics --round 5
+python utils.py compute-metrics --round 5
 
 # Holdout evaluation (independent of training)
 ./evaluate.sh 20
 
 # Quick dashboard
-python3 -c "
+python -c "
 import json, glob
 rounds = sorted(glob.glob('results/metrics/round_*.json'))
 for r in rounds:

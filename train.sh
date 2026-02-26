@@ -35,28 +35,30 @@ run_agent() {
 }
 
 pick_discovery_batch() {
-    python3 utils.py pick-batch --size "$BATCH_SIZE"
+    python -u utils.py pick-batch --size "$BATCH_SIZE"
 }
 
 pick_prediction_batch() {
-    python3 utils.py pick-batch --size "$BATCH_SIZE" --exclude-used
+    python -u utils.py pick-batch --size "$BATCH_SIZE" --exclude-used
 }
 
 ensure_data() {
     local fetched
     fetched=$(find data/prs -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
     if [[ "${fetched:-0}" -lt $((BATCH_SIZE * 3)) ]]; then
-        log "Need more PR data. Fetching..."
+        log "Need more PR data ($fetched so far). Fetching random sample (streaming below)..."
         ./fetch.sh --batch $((BATCH_SIZE * 5)) closed
+    else
+        log "PR data OK ($fetched PRs)."
     fi
 }
 
 run_round() {
     local round=$1
-    log "════════ ROUND $round ════════"
+    log "════════ ROUND $round / $ROUNDS ════════"
 
     # Step 1: Skill discovery
-    log "Step 1: Skill discovery..."
+    log "Step 1/5: Skill discovery..."
     local discover_batch
     discover_batch=$(pick_discovery_batch)
     local pr_dirs
@@ -64,39 +66,44 @@ run_round() {
     run_agent prompts/discover_skills.md "PR_DIRS=$pr_dirs"
 
     # Step 2: Predict outcomes for a different batch
-    log "Step 2: Predicting outcomes..."
+    log "Step 2/5: Predicting outcomes..."
     local predict_batch
     predict_batch=$(pick_prediction_batch)
-
+    local num_pred total_pred
+    total_pred=$(echo $predict_batch | wc -w | tr -d ' ')
+    num_pred=0
     for pr in $predict_batch; do
-        log "  Predicting PR #${pr}..."
+        num_pred=$((num_pred + 1))
+        log "  [${num_pred}/${total_pred}] Predicting PR #${pr}..."
         run_agent prompts/predict_review.md "PR_DIR=data/prs/${pr}" "PR_NUMBER=${pr}"
     done
 
     # Step 3: Evaluate predictions
-    log "Step 3: Evaluating predictions..."
+    log "Step 3/5: Evaluating predictions..."
+    num_pred=0
     for pr in $predict_batch; do
-        log "  Evaluating PR #${pr}..."
+        num_pred=$((num_pred + 1))
+        log "  [${num_pred}/${total_pred}] Evaluating PR #${pr}..."
         run_agent prompts/evaluate_prediction.md "PR_DIR=data/prs/${pr}" "PR_NUMBER=${pr}"
     done
 
     # Step 4: Refine skills
-    log "Step 4: Refining skills..."
+    log "Step 4/5: Refining skills..."
     local eval_files
     eval_files=$(echo "$predict_batch" | xargs -I{} echo "results/evaluations/{}.json" | tr '\n' ' ')
     run_agent prompts/refine_skills.md "EVAL_FILES=$eval_files"
 
     # Step 5: Compute metrics
-    log "Step 5: Computing metrics..."
-    python3 utils.py compute-metrics --round "$round"
+    log "Step 5/5: Computing metrics..."
+    python -u utils.py compute-metrics --round "$round"
 
     # Step 6: Git commit and branch
     local metrics_file="results/metrics/round_${round}.json"
     local outcome_pct triage_pct total_skills
     if [[ -f "$metrics_file" ]]; then
-        outcome_pct=$(python3 -c "import json; print(int(round(json.load(open('$metrics_file')).get('outcome_accuracy',0)*100)))")
-        triage_pct=$(python3 -c "import json; print(int(round(json.load(open('$metrics_file')).get('triage_accuracy',0)*100)))")
-        total_skills=$(python3 -c "import json; print(json.load(open('$metrics_file')).get('total_skills',0))")
+        outcome_pct=$(python -c "import json; print(int(round(json.load(open('$metrics_file')).get('outcome_accuracy',0)*100)))")
+        triage_pct=$(python -c "import json; print(int(round(json.load(open('$metrics_file')).get('triage_accuracy',0)*100)))")
+        total_skills=$(python -c "import json; print(json.load(open('$metrics_file')).get('total_skills',0))")
     else
         outcome_pct=0
         triage_pct=0

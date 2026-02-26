@@ -11,9 +11,15 @@ set -euo pipefail
 echo "═══════════════════════════════════════════════════"
 echo "  PR Review Bot — Quick Test (1 round, batch 2)"
 echo "═══════════════════════════════════════════════════"
+echo ""
 
+echo "[$(date '+%H:%M:%S')] Fetching 10 PRs (random sample)..."
 ./fetch.sh --batch 10 closed
+echo ""
+echo "[$(date '+%H:%M:%S')] Training 1 round, batch 2..."
 ./train.sh 1 2
+echo ""
+echo "[$(date '+%H:%M:%S')] Holdout evaluation (2 PRs)..."
 ./evaluate.sh 2
 
 echo ""

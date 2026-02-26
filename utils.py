@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Minimal utilities for the PR review bot. Handles sampling, metrics,
 and batch management. Everything else is done by the agent."""
 
 import json
 import os
 import random
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -91,6 +92,57 @@ def sample_stratified(count):
         sampled.extend(random.sample(remaining, min(needed, len(remaining))))
 
     return sampled[:count]
+
+
+def sample_prs_to_fetch(repo, count):
+    """Sample PR numbers to fetch from multiple strata (merged, closed, well-reviewed, etc.)
+    to avoid chronological/PR-number bias. Uses gh CLI."""
+    limit_per_pool = max(count * 2, 200)
+    pools = []
+
+    def run_gh_pr_list(state, extra_args=None):
+        args = ["gh", "pr", "list", "--repo", repo, "--state", state, "--limit", str(limit_per_pool), "--json", "number", "-q", ".[].number"]
+        if extra_args:
+            args = args[:8] + extra_args + args[8:]
+        try:
+            out = subprocess.run(args, capture_output=True, text=True, timeout=60)
+            if out.returncode == 0 and out.stdout.strip():
+                return [int(n) for n in out.stdout.strip().splitlines() if n.strip().isdigit()]
+        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+            pass
+        return []
+
+    def run_gh_search(query_suffix, limit=300):
+        query = f"repo:{repo} is:pr {query_suffix}"
+        try:
+            out = subprocess.run(
+                ["gh", "search", "prs", query, "--limit", str(limit), "--json", "number", "-q", ".[].number"],
+                capture_output=True, text=True, timeout=90,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                return [int(n) for n in out.stdout.strip().splitlines() if n.strip().isdigit()]
+        except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+            pass
+        return []
+
+    # (a) Merged PRs
+    pools.append(run_gh_pr_list("merged"))
+    # (b) Closed but not merged
+    pools.append(run_gh_search("is:closed -is:merged", limit=limit_per_pool))
+    # (c) Well-reviewed: merged with review approval (search proxy)
+    pools.append(run_gh_search("is:merged review:approved", limit=limit_per_pool))
+    # (d) Merged again with different sort (quick-merge proxy: recently updated/created spread)
+    pools.append(run_gh_pr_list("merged"))
+
+    combined = []
+    seen = set()
+    for pool in pools:
+        for pr in pool:
+            if pr not in seen:
+                seen.add(pr)
+                combined.append(pr)
+    random.shuffle(combined)
+    return combined[:count]
 
 
 def pick_batch(size, exclude_used=True):
@@ -180,10 +232,11 @@ def compute_metrics(round_num=None):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] == "help":
-        print("Usage: python3 utils.py <command> [options]")
+        print("Usage: python utils.py <command> [options]")
         print("Commands:")
         print("  help                  Show this message")
         print("  sample                Stratified sample of PRs (--count N, --strategy stratified|random)")
+        print("  sample-prs-to-fetch   Random PR numbers to fetch (--count N, --repo OWNER/REPO)")
         print("  pick-batch            Pick a batch for training (--size N, optional --exclude-used)")
         print("  get-holdout           Get PR numbers for holdout evaluation (--size N)")
         print("  compute-metrics       Compute accuracy from evaluations (--round N)")
@@ -197,6 +250,16 @@ def main():
         if "--count" in sys.argv:
             count = int(sys.argv[sys.argv.index("--count") + 1])
         prs = sample_stratified(count)
+        print("\n".join(str(p) for p in prs))
+
+    elif cmd == "sample-prs-to-fetch":
+        count = 50
+        repo = os.environ.get("REPO", "vllm-project/vllm")
+        if "--count" in sys.argv:
+            count = int(sys.argv[sys.argv.index("--count") + 1])
+        if "--repo" in sys.argv:
+            repo = sys.argv[sys.argv.index("--repo") + 1]
+        prs = sample_prs_to_fetch(repo, count)
         print("\n".join(str(p) for p in prs))
 
     elif cmd == "pick-batch":

@@ -8,9 +8,10 @@ set -euo pipefail
 SIZE=${1:?Usage: ./evaluate.sh <holdout_size>}
 AGENT_CMD="${AGENT_CMD:-claude}"
 
-echo "Running holdout evaluation on $SIZE PRs..."
-
-HOLDOUT=$(python3 utils.py get-holdout --size "$SIZE")
+echo "[$(date '+%H:%M:%S')] Running holdout evaluation on $SIZE PRs..."
+HOLDOUT=$(python -u utils.py get-holdout --size "$SIZE")
+total=$(echo "$HOLDOUT" | wc -w | tr -d ' ')
+echo "[$(date '+%H:%M:%S')] Holdout set: $total PRs. Streaming progress below..."
 
 run_prompt() {
     local prompt=$1
@@ -25,13 +26,16 @@ run_prompt() {
     fi
 }
 
+idx=0
 for pr in $HOLDOUT; do
-    echo "  Evaluating PR #${pr}..."
+    idx=$((idx + 1))
+    echo "  [${idx}/${total}] Evaluating PR #${pr} (predict + evaluate)..."
     run_prompt "$(sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/predict_review.md)"
     run_prompt "$(sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/evaluate_prediction.md)"
 done
 
-python3 utils.py compute-holdout-metrics
+echo "[$(date '+%H:%M:%S')] Computing holdout metrics..."
+python -u utils.py compute-holdout-metrics
 
 echo ""
 echo "Holdout evaluation complete. Results: results/metrics/holdout.json"

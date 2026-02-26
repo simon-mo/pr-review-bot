@@ -28,7 +28,7 @@ while read pr; do
 done < data/open_prs.txt
 
 # Summary
-python3 -c "
+python -c "
 import json, glob
 for f in sorted(glob.glob('results/reviews/*.md')):
     pr = f.split('/')[-1].replace('.md','')
