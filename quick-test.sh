@@ -14,12 +14,15 @@ echo "════════════════════════�
 echo ""
 
 echo "[$(date '+%H:%M:%S')] Fetching 10 PRs (random sample)..."
+echo "[$(date '+%H:%M:%S')]   \$ ./fetch.sh --batch 10 closed"
 ./fetch.sh --batch 10 closed
 echo ""
 echo "[$(date '+%H:%M:%S')] Training 1 round, batch 2..."
+echo "[$(date '+%H:%M:%S')]   \$ ./train.sh 1 2"
 ./train.sh 1 2
 echo ""
 echo "[$(date '+%H:%M:%S')] Holdout evaluation (2 PRs)..."
+echo "[$(date '+%H:%M:%S')]   \$ ./evaluate.sh 2"
 ./evaluate.sh 2
 
 echo ""

@@ -11,12 +11,15 @@ echo "════════════════════════�
 echo ""
 
 echo "[$(date '+%H:%M:%S')] Step 1/3: Fetching PRs (random sample, streaming below)..."
+echo "[$(date '+%H:%M:%S')]   \$ ./fetch.sh --batch 200 closed"
 ./fetch.sh --batch 200 closed
 echo ""
 echo "[$(date '+%H:%M:%S')] Step 2/3: Training (streaming below)..."
+echo "[$(date '+%H:%M:%S')]   \$ ./train.sh 10 15"
 ./train.sh 10 15
 echo ""
 echo "[$(date '+%H:%M:%S')] Step 3/3: Holdout evaluation (streaming below)..."
+echo "[$(date '+%H:%M:%S')]   \$ ./evaluate.sh 20"
 ./evaluate.sh 20
 
 echo ""
@@ -31,6 +34,7 @@ cat results/metrics/holdout.json 2>/dev/null || echo "  (none)"
 echo ""
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git remote get-url origin >/dev/null 2>&1; then
+    echo "[$(date '+%H:%M:%S')]   \$ git push origin HEAD"
     echo "Pushing commits to origin..."
     git push origin HEAD
 fi

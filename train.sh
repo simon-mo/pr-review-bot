@@ -11,27 +11,45 @@ AGENT_CMD="${AGENT_CMD:-claude}"
 REPO="vllm-project/vllm"
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
+# Show the command we're about to run (no execution)
+show_cmd() { echo "[$(date '+%H:%M:%S')]   \$ $*"; }
 
 run_agent() {
     local prompt_file=$1
     shift
-    local prompt
-    prompt=$(cat "$prompt_file")
+    local subs=()
     while [[ $# -gt 0 ]]; do
-        local key="${1%%=*}"
-        local val="${1#*=}"
-        prompt="${prompt//\{\{$key\}\}/$val}"
+        subs+=("$1")
         shift
     done
-    if [[ "$AGENT_CMD" == "agent" ]]; then
-        local tmp
-        tmp=$(mktemp)
-        printf '%s' "$prompt" > "$tmp"
-        $AGENT_CMD -p "$(cat "$tmp")" --trust
-        rm -f "$tmp"
+    local prompt
+    prompt=$(cat "$prompt_file")
+    for sub in "${subs[@]}"; do
+        local key="${sub%%=*}"
+        local val="${sub#*=}"
+        prompt="${prompt//\{\{$key\}\}/$val}"
+    done
+    # Show the command (abbreviated: prompt file + vars)
+    show_cmd "${AGENT_CMD} -p < ${prompt_file} ${subs[*]}"
+    local tmp
+    tmp=$(mktemp)
+    printf '%s' "$prompt" > "$tmp"
+    # Stream agent output so you see progress (line-buffered or PTY); never capture stdout
+    if command -v stdbuf >/dev/null 2>&1; then
+        if [[ "$AGENT_CMD" == "agent" ]]; then
+            stdbuf -oL -eL $AGENT_CMD -p "$(cat "$tmp")" --trust
+        else
+            stdbuf -oL -eL $AGENT_CMD -p < "$tmp"
+        fi
     else
-        echo "$prompt" | $AGENT_CMD -p
+        # macOS etc: run in a PTY so the agent streams output
+        if [[ "$AGENT_CMD" == "agent" ]]; then
+            script -q /dev/null $AGENT_CMD -p "$(cat "$tmp")" --trust
+        else
+            script -q /dev/null $AGENT_CMD -p < "$tmp"
+        fi
     fi
+    rm -f "$tmp"
 }
 
 pick_discovery_batch() {
@@ -47,6 +65,7 @@ ensure_data() {
     fetched=$(find data/prs -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
     if [[ "${fetched:-0}" -lt $((BATCH_SIZE * 3)) ]]; then
         log "Need more PR data ($fetched so far). Fetching random sample (streaming below)..."
+        show_cmd "./fetch.sh --batch $((BATCH_SIZE * 5)) closed"
         ./fetch.sh --batch $((BATCH_SIZE * 5)) closed
     else
         log "PR data OK ($fetched PRs)."
@@ -59,6 +78,7 @@ run_round() {
 
     # Step 1: Skill discovery
     log "Step 1/5: Skill discovery..."
+    show_cmd "python -u utils.py pick-batch --size $BATCH_SIZE"
     local discover_batch
     discover_batch=$(pick_discovery_batch)
     local pr_dirs
@@ -67,6 +87,7 @@ run_round() {
 
     # Step 2: Predict outcomes for a different batch
     log "Step 2/5: Predicting outcomes..."
+    show_cmd "python -u utils.py pick-batch --size $BATCH_SIZE --exclude-used"
     local predict_batch
     predict_batch=$(pick_prediction_batch)
     local num_pred total_pred
@@ -95,6 +116,7 @@ run_round() {
 
     # Step 5: Compute metrics
     log "Step 5/5: Computing metrics..."
+    show_cmd "python -u utils.py compute-metrics --round $round"
     python -u utils.py compute-metrics --round "$round"
 
     # Step 6: Git commit and branch
@@ -112,6 +134,7 @@ run_round() {
     local commit_msg="training round $round: ${outcome_pct}% outcome, ${triage_pct}% triage, ${total_skills} skills"
 
     if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        show_cmd "git add skills/ results/ && git commit -m \"$commit_msg\" && git branch training/round-$round"
         git add skills/ results/
         git add -f results/predictions/*.json results/evaluations/*.json results/metrics/*.json results/skill_changelog.md 2>/dev/null || true
         git status --short skills/ results/ | grep -q . && git commit -m "$commit_msg" || true
@@ -125,6 +148,7 @@ run_round() {
 log "Starting training: $ROUNDS rounds, batch size $BATCH_SIZE"
 ensure_data
 mkdir -p results/predictions results/evaluations results/metrics results/reviews results/resolutions
+mkdir -p skills
 
 for (( r=1; r<=ROUNDS; r++ )); do
     run_round "$r"

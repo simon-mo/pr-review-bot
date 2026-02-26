@@ -21,6 +21,7 @@ fetch_pr() {
 
     mkdir -p "$dir"
     echo "  ${progress}[fetch] PR #${pr}..."
+    echo "  ${progress}  \$ gh pr view $pr --repo $REPO (meta, diff, files, reviews, comments)" 1>&2
 
     # Metadata
     gh pr view "$pr" --repo "$REPO" \
@@ -67,11 +68,30 @@ fetch_batch() {
     local state=${2:-closed}
 
     echo "[$(date '+%H:%M:%S')] Sampling ${count} PRs (merged + closed + well-reviewed mix)..." 1>&2
+    echo "[$(date '+%H:%M:%S')]   \$ python -u utils.py sample-prs-to-fetch --count $count --repo $REPO" 1>&2
     # Random stratified sample — do not use chronological/PR-number order
     local list
     list=$(python -u utils.py sample-prs-to-fetch --count "$count" --repo "$REPO") || exit 1
+    # Respect local cache: only fetch PRs we don't already have
+    local to_fetch=""
+    local cached=0
+    while read -r pr; do
+        [[ -z "${pr:-}" ]] && continue
+        if [[ -f "${DATA_DIR}/${pr}/meta.json" ]]; then
+            cached=$((cached + 1))
+        else
+            to_fetch="${to_fetch:+${to_fetch}$'\n'}${pr}"
+        fi
+    done <<< "$list"
     local total
-    total=$(echo "$list" | grep -c . || echo 0)
+    total=$(echo "$to_fetch" | grep -c . || echo 0)
+    if [[ $cached -gt 0 ]]; then
+        echo "[$(date '+%H:%M:%S')] Using local cache for ${cached} PR(s). Fetching ${total} new PRs..." 1>&2
+    fi
+    if [[ $total -eq 0 ]]; then
+        echo "[$(date '+%H:%M:%S')] All requested PRs already in cache. Nothing to fetch." 1>&2
+        return 0
+    fi
     echo "[$(date '+%H:%M:%S')] Fetching ${total} PRs (streaming progress below)..." 1>&2
 
     local i=0
@@ -80,7 +100,7 @@ fetch_batch() {
         i=$((i + 1))
         fetch_pr "$pr" "[${i}/${total}] "
         sleep 0.5  # Rate limit courtesy
-    done <<< "$list"
+    done <<< "$to_fetch"
     echo "[$(date '+%H:%M:%S')] Batch fetch complete." 1>&2
 }
 
