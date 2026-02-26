@@ -1,0 +1,13 @@
+# Fetched PR data (re-fetchable)
+data/prs/**
+
+# Python
+__pycache__/
+*.pyc
+
+# Env and deps
+.env
+node_modules/
+
+# Keep empty directories
+!**/.gitkeep
