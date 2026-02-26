@@ -1,8 +1,10 @@
 # vLLM PR Review Bot
 
-An AI-powered triage system for vLLM pull requests. It learns from the project's ~20,000 closed PRs to predict how maintainers will review new PRs, what comments they'll leave, and whether the PR is ready to merge.
+An AI-powered triage system for vLLM pull requests. It learns from the project's closed PRs to predict how maintainers will review new PRs, what comments they'll leave, and whether the PR is ready to merge.
 
-The intelligence lives in **skills** — markdown files that encode learned review patterns — and **prompts** that instruct Claude Code to discover, refine, and apply those skills. The repo contains almost no application code. Everything runs locally. The `gh` CLI fetches PR data; Claude Code does the thinking; `git` versions everything the agent produces.
+The intelligence lives in **skills** — markdown files that encode learned review patterns — and **prompts** that instruct Claude Code to discover, refine, and apply those skills. The repo contains minimal code: `fetch.sh`, `train.sh`, `review.sh`, `evaluate.sh`, `run.sh`, and `utils.py`. Everything runs locally. The `gh` CLI fetches PR data; Claude Code (`claude -p`) does the thinking; `git` versions everything the agent produces.
+
+**Current status:** Bootstrap (Phase 1) is complete — all prompts, scripts, and docs are in place (Booster commit). **Next:** run the pipeline to fetch data and train (Phase 2). See Quick Start below.
 
 ## How It Works
 
@@ -12,27 +14,28 @@ The intelligence lives in **skills** — markdown files that encode learned revi
 
 **Skills are emergent.** The `skills/` directory starts empty. The agent creates skills as it discovers patterns. Skills evolve, split, merge, and get archived based on measured accuracy. There is no pre-defined taxonomy.
 
-## Quick Start
+## Quick Start (Phase 2: Fetch & Train)
+
+**Prerequisites:** GitHub CLI authenticated (`gh auth status`), Claude Code on PATH (`claude --version`).
+
+**Full pipeline (recommended for first run):**
 
 ```bash
-# Prerequisites
-gh auth status       # GitHub CLI, authenticated
-claude --version     # Claude Code CLI
-
-# One command to run everything
 ./run.sh
 ```
 
-`run.sh` does the full pipeline: fetches PR data, runs training rounds, evaluates accuracy, commits results. Run it once overnight and come back to trained skills in the morning.
+This fetches 200 closed PRs from vllm-project/vllm, runs 10 training rounds (batch size 15), evaluates on 20 holdout PRs, prints a summary, and pushes commits to `origin` if the remote exists. Allow time for fetch and multiple Claude invocations (e.g. run overnight).
 
-For finer control:
+**Stepwise (finer control):**
 
 ```bash
-./fetch.sh --batch 50 closed     # Fetch 50 closed PRs
-./train.sh 5 10                   # 5 training rounds, 10 PRs per batch
-./evaluate.sh 20                  # Evaluate on 20 held-out PRs
-./review.sh 28456                 # Review a specific live PR
+./fetch.sh --batch 200 closed    # Fetch 200 closed PRs into data/prs/
+./train.sh 10 15                 # 10 rounds, 15 PRs per discovery/prediction batch
+./evaluate.sh 20                 # Evaluate on 20 held-out PRs
+./review.sh <pr_number>          # Review a specific live PR (after training)
 ```
+
+See `TRAINING.md` for round details and `design.md` for implementation status and next phase.
 
 ## How Git Is Used
 
@@ -60,29 +63,19 @@ The agent merges each successful round back to `main` and pushes, so the remote 
 ## Repo Structure
 
 ```
-├── design.md              # Full architecture and design rationale
+├── design.md              # Architecture, status, and next phase
 ├── TRAINING.md            # Training loop documentation
 ├── REVIEW.md              # Live PR review documentation
-├── METRICS.md             # Metrics definitions and anti-gaming measures
-│
-├── skills/                # Learned skills (starts empty, agent populates)
-│
-├── prompts/               # Agent instructions for each phase
-│   ├── discover_skills.md
-│   ├── predict_review.md
-│   ├── evaluate_prediction.md
-│   ├── refine_skills.md
-│   ├── review_live_pr.md
-│   └── resolve_issues.md
-│
-├── data/prs/              # One directory per PR (fetched by fetch.sh)
-├── results/               # Predictions, evaluations, metrics, reviews
-│
-├── run.sh                 # Full pipeline: fetch → train → evaluate
+├── METRICS.md             # Metrics and anti-gaming
+├── prompts/               # Agent instructions (discover, predict, evaluate, refine, review, resolve)
+├── skills/                # Learned skills (starts empty; agent populates)
+├── data/prs/              # One directory per PR (fetched by fetch.sh; gitignored)
+├── results/               # Predictions, evaluations, metrics, reviews (tracked)
+├── run.sh                 # Full pipeline: fetch → train → evaluate → push
 ├── fetch.sh               # Fetch PR data via gh CLI
-├── train.sh               # Run training loop via Claude Code
+├── train.sh               # Training loop (Claude -p)
 ├── review.sh              # Review a single live PR
-├── evaluate.sh            # Run holdout evaluation
+├── evaluate.sh            # Holdout evaluation
 └── utils.py               # Sampling, metrics, batch management
 ```
 
