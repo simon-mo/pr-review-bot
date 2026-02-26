@@ -14,7 +14,15 @@ echo "════════════════════════�
 
 ./fetch.sh "$PR"
 
-sed "s|{{PR_DIR}}|data/prs/${PR}|g; s|{{PR_NUMBER}}|${PR}|g" prompts/review_live_pr.md | $AGENT_CMD -p
+REVIEW_PROMPT=$(sed "s|{{PR_DIR}}|data/prs/${PR}|g; s|{{PR_NUMBER}}|${PR}|g" prompts/review_live_pr.md)
+if [[ "$AGENT_CMD" == "agent" ]]; then
+    tmp=$(mktemp)
+    printf '%s' "$REVIEW_PROMPT" > "$tmp"
+    $AGENT_CMD -p "$(cat "$tmp")" --trust
+    rm -f "$tmp"
+else
+    echo "$REVIEW_PROMPT" | $AGENT_CMD -p
+fi
 
 echo ""
 echo "═══════════════════════════════════════════════════"

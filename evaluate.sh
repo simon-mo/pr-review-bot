@@ -12,10 +12,23 @@ echo "Running holdout evaluation on $SIZE PRs..."
 
 HOLDOUT=$(python3 utils.py get-holdout --size "$SIZE")
 
+run_prompt() {
+    local prompt=$1
+    if [[ "$AGENT_CMD" == "agent" ]]; then
+        local tmp
+        tmp=$(mktemp)
+        printf '%s' "$prompt" > "$tmp"
+        $AGENT_CMD -p "$(cat "$tmp")" --trust
+        rm -f "$tmp"
+    else
+        echo "$prompt" | $AGENT_CMD -p
+    fi
+}
+
 for pr in $HOLDOUT; do
     echo "  Evaluating PR #${pr}..."
-    sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/predict_review.md | $AGENT_CMD -p
-    sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/evaluate_prediction.md | $AGENT_CMD -p
+    run_prompt "$(sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/predict_review.md)"
+    run_prompt "$(sed "s|{{PR_DIR}}|data/prs/${pr}|g; s|{{PR_NUMBER}}|${pr}|g" prompts/evaluate_prediction.md)"
 done
 
 python3 utils.py compute-holdout-metrics

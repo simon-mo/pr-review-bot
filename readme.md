@@ -2,7 +2,7 @@
 
 An AI-powered triage system for vLLM pull requests. It learns from the project's closed PRs to predict how maintainers will review new PRs, what comments they'll leave, and whether the PR is ready to merge.
 
-The intelligence lives in **skills** — markdown files that encode learned review patterns — and **prompts** that instruct Claude Code to discover, refine, and apply those skills. The repo contains minimal code: `fetch.sh`, `train.sh`, `review.sh`, `evaluate.sh`, `run.sh`, and `utils.py`. Everything runs locally. The `gh` CLI fetches PR data; Claude Code (`claude -p`) does the thinking; `git` versions everything the agent produces.
+The intelligence lives in **skills** — markdown files that encode learned review patterns — and **prompts** that instruct the agent to discover, refine, and apply those skills. The repo contains minimal code: `fetch.sh`, `train.sh`, `review.sh`, `evaluate.sh`, `run.sh`, `quick-test.sh`, and `utils.py`. Everything runs locally. The `gh` CLI fetches PR data; Claude Code (`claude`) or Cursor Agent CLI (`agent`) does the thinking (set `AGENT_CMD=agent` to use Cursor; default is `claude`); `git` versions everything the agent produces.
 
 **Current status:** Bootstrap (Phase 1) is complete — all prompts, scripts, and docs are in place (Booster commit). **Next:** run the pipeline to fetch data and train (Phase 2). See Quick Start below.
 
@@ -16,7 +16,15 @@ The intelligence lives in **skills** — markdown files that encode learned revi
 
 ## Quick Start (Phase 2: Fetch & Train)
 
-**Prerequisites:** GitHub CLI authenticated (`gh auth status`), Claude Code on PATH (`claude --version`).
+**Prerequisites:** GitHub CLI authenticated (`gh auth status`). Claude Code (`claude --version`) or Cursor Agent CLI (`agent --version`) on PATH; set `AGENT_CMD=agent` to use Cursor (default: `claude`).
+
+**Quick test (sanity-check the loop locally):**
+
+```bash
+AGENT_CMD=agent ./quick-test.sh   # or omit AGENT_CMD to use claude
+```
+
+This fetches 10 PRs, runs 1 training round (batch size 2), evaluates on 2 holdout PRs, and prints a summary. To reset and re-run, use git (e.g. `git checkout main` or `git reset --hard origin/main`).
 
 **Full pipeline (recommended for first run):**
 
@@ -24,7 +32,7 @@ The intelligence lives in **skills** — markdown files that encode learned revi
 ./run.sh
 ```
 
-This fetches 200 closed PRs from vllm-project/vllm, runs 10 training rounds (batch size 15), evaluates on 20 holdout PRs, prints a summary, and pushes commits to `origin` if the remote exists. Allow time for fetch and multiple Claude invocations (e.g. run overnight).
+This fetches 200 closed PRs from vllm-project/vllm, runs 10 training rounds (batch size 15), evaluates on 20 holdout PRs, prints a summary, and pushes commits to `origin` if the remote exists. Allow time for fetch and multiple agent invocations (e.g. run overnight).
 
 **Stepwise (finer control):**
 
@@ -72,8 +80,9 @@ The agent merges each successful round back to `main` and pushes, so the remote 
 ├── data/prs/              # One directory per PR (fetched by fetch.sh; gitignored)
 ├── results/               # Predictions, evaluations, metrics, reviews (tracked)
 ├── run.sh                 # Full pipeline: fetch → train → evaluate → push
+├── quick-test.sh          # Quick test: 1 round, batch 2 (sanity-check loop locally)
 ├── fetch.sh               # Fetch PR data via gh CLI
-├── train.sh               # Training loop (Claude -p)
+├── train.sh               # Training loop (uses AGENT_CMD: claude or agent)
 ├── review.sh              # Review a single live PR
 ├── evaluate.sh            # Holdout evaluation
 └── utils.py               # Sampling, metrics, batch management
@@ -81,7 +90,7 @@ The agent merges each successful round back to `main` and pushes, so the remote 
 
 ## Key Design Decisions
 
-**No CI, no cloud, no infrastructure.** This runs on your laptop. `gh` downloads data, `claude` thinks, `git` saves. That's the entire stack.
+**No CI, no cloud, no infrastructure.** This runs on your laptop. `gh` downloads data, the agent (Claude Code or Cursor Agent CLI per `AGENT_CMD`) thinks, `git` saves. That's the entire stack.
 
 **Git as the iteration layer.** Instead of a database or artifact store, the agent uses git branches and commits to track its own progress. Each training round is a branch. You can diff, revert, cherry-pick, and branch just like any codebase. This also means you can push to a remote and pick up training on another machine.
 

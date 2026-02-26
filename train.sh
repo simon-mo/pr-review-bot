@@ -23,7 +23,15 @@ run_agent() {
         prompt="${prompt//\{\{$key\}\}/$val}"
         shift
     done
-    echo "$prompt" | $AGENT_CMD -p
+    if [[ "$AGENT_CMD" == "agent" ]]; then
+        local tmp
+        tmp=$(mktemp)
+        printf '%s' "$prompt" > "$tmp"
+        $AGENT_CMD -p "$(cat "$tmp")" --trust
+        rm -f "$tmp"
+    else
+        echo "$prompt" | $AGENT_CMD -p
+    fi
 }
 
 pick_discovery_batch() {

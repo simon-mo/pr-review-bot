@@ -13,8 +13,18 @@ Skills start from ZERO. The agent creates them as it discovers patterns.
 ## Prerequisites
 
 - `gh` CLI authenticated with access to vllm-project/vllm
-- Claude Code (`claude`) or Cursor CLI (`cursor`) installed
-- Set `AGENT_CMD` env var if not using Claude Code (default: `claude`)
+- Claude Code (`claude`) or Cursor Agent CLI (`agent`) installed
+- Set `AGENT_CMD=agent` to use Cursor (default: `claude`)
+
+## Quick test
+
+To sanity-check the full loop locally before scaling up:
+
+```bash
+./quick-test.sh   # Uses AGENT_CMD (default claude); or AGENT_CMD=agent ./quick-test.sh
+```
+
+This fetches 10 PRs, runs 1 round with batch size 2, and evaluates on 2 holdout PRs. To reset and re-run, use git (e.g. `git checkout main` or `git reset --hard origin/main`).
 
 ## Quick Start
 

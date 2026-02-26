@@ -6,7 +6,7 @@ You are in the pr-review-bot repo. Phase 1 (Bootstrap) is complete — all scrip
 
 1. **Prerequisites**
    - Confirm `gh` is authenticated and can access vllm-project/vllm: run `gh auth status` and, if needed, `gh pr list --repo vllm-project/vllm --limit 1`.
-   - Confirm Claude Code is available: run `claude --version` or `which claude`.
+   - Confirm the agent CLI is available: run `claude --version` or `agent --version` (or set `AGENT_CMD` to the CLI you want; default is `claude`).
 
 2. **Run the full pipeline**
    - From the repo root run: `./run.sh`
@@ -15,13 +15,13 @@ You are in the pr-review-bot repo. Phase 1 (Bootstrap) is complete — all scrip
 
 3. **If you prefer stepwise execution**
    - `./fetch.sh --batch 200 closed` — wait for completion (idempotent; safe to re-run).
-   - `./train.sh 10 15` — 10 rounds, 15 PRs per discovery and prediction batch; each round invokes Claude via `claude -p` with the appropriate prompt.
+   - `./train.sh 10 15` — 10 rounds, 15 PRs per discovery and prediction batch; each round invokes the agent via `AGENT_CMD` (default `claude`) with the appropriate prompt.
    - `./evaluate.sh 20` — holdout evaluation and metrics.
    - If a remote exists: `git push origin HEAD`.
 
 4. **Handle failures**
    - **gh auth / rate limit:** If `fetch.sh` fails on auth or rate limit, report the error and suggest `gh auth login` or reducing batch size / adding delay.
-   - **claude not found:** If `claude` is not on PATH, report and suggest installing Claude Code or setting `AGENT_CMD` to the correct CLI.
+   - **Agent CLI not found:** If the default `claude` (or `agent` if `AGENT_CMD=agent`) is not on PATH, report and suggest installing Claude Code or Cursor Agent CLI, or setting `AGENT_CMD` to the correct CLI.
    - **Script errors:** If a script exits non-zero, run it in a way that shows the full error (e.g. no `|| true`), then fix the underlying cause (script bug, missing file, or env) and re-run only the failed step.
    - **Missing data:** If training or evaluate fails because there are not enough PRs, run `./fetch.sh --batch <larger_count> closed` first, then re-run training or evaluate.
 

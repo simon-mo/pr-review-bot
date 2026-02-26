@@ -1,5 +1,7 @@
 # Reviewing Live PRs
 
+`./review.sh` uses `AGENT_CMD` (default: `claude`; set to `agent` for Cursor Agent CLI). The optional pipe examples below assume `claude`; use the scripts when using Cursor Agent.
+
 ## Single PR Review
 
 ```bash
@@ -48,7 +50,7 @@ Each review produces:
 For PRs triaged as NEEDS_MINOR_FIXES, attempt auto-resolution:
 
 ```bash
-# Generate patch for fixable issues
+# Generate patch for fixable issues (pipe works with claude; for Cursor Agent use the scripts)
 cat prompts/resolve_issues.md \
     | sed "s|{{PR_DIR}}|data/prs/28456|g" \
     | sed "s|{{PR_NUMBER}}|28456|g" \
@@ -67,7 +69,7 @@ If a review was wrong (you disagreed with the triage), feed it back:
 
 ```bash
 # The review for PR 28456 was wrong — it said READY_TO_MERGE but needed fixes.
-# Run a targeted refinement:
+# Run a targeted refinement (pipe works with claude; for Cursor Agent use the scripts):
 echo "PR 28456 was triaged as READY_TO_MERGE but actually needed revision.
 The issues were: [describe what was missed].
 Read the PR data in data/prs/28456/ and update the relevant skills in skills/
