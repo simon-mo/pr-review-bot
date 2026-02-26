@@ -29,24 +29,23 @@ run_agent() {
         local val="${sub#*=}"
         prompt="${prompt//\{\{$key\}\}/$val}"
     done
-    # Show the command (abbreviated: prompt file + vars)
-    show_cmd "${AGENT_CMD} -p < ${prompt_file} ${subs[*]}"
     local tmp
     tmp=$(mktemp)
     printf '%s' "$prompt" > "$tmp"
-    # Stream agent output so you see progress (line-buffered or PTY); never capture stdout
+    # Pass prompt as file path (scalable; avoids stdin/argument length issues)
+    show_cmd "${AGENT_CMD} -p \"$tmp\" (prompt file) ${subs[*]}"
+    # Stream agent output (line-buffered or PTY)
     if command -v stdbuf >/dev/null 2>&1; then
         if [[ "$AGENT_CMD" == "agent" ]]; then
-            stdbuf -oL -eL $AGENT_CMD -p "$(cat "$tmp")" --trust
+            stdbuf -oL -eL $AGENT_CMD -p "$tmp" --trust
         else
-            stdbuf -oL -eL $AGENT_CMD -p < "$tmp"
+            stdbuf -oL -eL $AGENT_CMD -p "$tmp"
         fi
     else
-        # macOS etc: run in a PTY so the agent streams output
         if [[ "$AGENT_CMD" == "agent" ]]; then
-            script -q /dev/null $AGENT_CMD -p "$(cat "$tmp")" --trust
+            script -q /dev/null $AGENT_CMD -p "$tmp" --trust
         else
-            script -q /dev/null $AGENT_CMD -p < "$tmp"
+            script -q /dev/null $AGENT_CMD -p "$tmp"
         fi
     fi
     rm -f "$tmp"

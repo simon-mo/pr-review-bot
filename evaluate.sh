@@ -18,16 +18,16 @@ run_prompt() {
     local prompt=$1
     local prompt_src=$2
     local pr_num=$3
-    echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD -p < ${prompt_src} PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
+    local tmp
+    tmp=$(mktemp)
+    printf '%s' "$prompt" > "$tmp"
+    echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD -p \"<prompt_file>\" (from ${prompt_src}) PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
     if [[ "$AGENT_CMD" == "agent" ]]; then
-        local tmp
-        tmp=$(mktemp)
-        printf '%s' "$prompt" > "$tmp"
-        $AGENT_CMD -p "$(cat "$tmp")" --trust
-        rm -f "$tmp"
+        $AGENT_CMD -p "$tmp" --trust
     else
-        echo "$prompt" | $AGENT_CMD -p
+        $AGENT_CMD -p "$tmp"
     fi
+    rm -f "$tmp"
 }
 
 idx=0
