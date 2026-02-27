@@ -7,6 +7,7 @@ set -euo pipefail
 
 SIZE=${1:?Usage: ./evaluate.sh <holdout_size>}
 AGENT_CMD="${AGENT_CMD:-claude}"
+AGENT_TTY="${AGENT_TTY:-0}"
 
 echo "[$(date '+%H:%M:%S')] Running holdout evaluation on $SIZE PRs..."
 echo "[$(date '+%H:%M:%S')]   \$ python -u utils.py get-holdout --size $SIZE"
@@ -21,13 +22,27 @@ run_prompt() {
     local tmp
     tmp=$(mktemp)
     printf '%s' "$prompt" > "$tmp"
-    echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD -p \"<prompt_file>\" (from ${prompt_src}) PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
-    if [[ "$AGENT_CMD" == "agent" ]]; then
-        $AGENT_CMD -p "$tmp" --trust
+    if [[ "$AGENT_TTY" == "1" ]]; then
+        if [[ "$AGENT_CMD" == "claude" ]]; then
+            echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD --dangerously-skip-permissions -p <stdin> (from ${prompt_src}) PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
+        else
+            echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD <stdin> (from ${prompt_src}) PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
+        fi
     else
-        $AGENT_CMD -p "$tmp"
+        echo "[$(date '+%H:%M:%S')]   \$ $AGENT_CMD -p <stdin> (from ${prompt_src}) PR_DIR=data/prs/${pr_num} PR_NUMBER=${pr_num}"
+    fi
+    local ret=0
+    if [[ "$AGENT_CMD" == "agent" ]]; then
+        $AGENT_CMD -p "$(cat "$tmp")" --trust || ret=$?
+    elif [[ "$AGENT_TTY" == "1" ]] && [[ "$AGENT_CMD" == "claude" ]]; then
+        $AGENT_CMD --dangerously-skip-permissions -p < "$tmp" || ret=$?
+    elif [[ "$AGENT_TTY" == "1" ]]; then
+        $AGENT_CMD < "$tmp" || ret=$?
+    else
+        $AGENT_CMD -p < "$tmp" || ret=$?
     fi
     rm -f "$tmp"
+    return $ret
 }
 
 idx=0

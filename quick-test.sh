@@ -24,6 +24,9 @@ echo "  PR Review Bot — Quick Test (1 round, batch 2)"
 echo "═══════════════════════════════════════════════════"
 echo ""
 
+# TTY=1: stream output, skip permission check, exit claude session when done.
+export AGENT_TTY=1
+
 if [[ -n "$DO_FETCH" ]] || [[ "${PR_COUNT:-0}" -lt "$NEED_PR_COUNT" ]]; then
     echo "[$(date '+%H:%M:%S')] Fetching 10 PRs (random sample)..."
     echo "[$(date '+%H:%M:%S')]   \$ ./fetch.sh --batch 10 closed"

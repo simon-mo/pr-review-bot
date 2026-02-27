@@ -9,6 +9,8 @@ ROUNDS=${1:-5}
 BATCH_SIZE=${2:-10}
 AGENT_CMD="${AGENT_CMD:-claude}"
 REPO="vllm-project/vllm"
+# By default no TTY (no stream/echo). Set AGENT_TTY=1 to stream output, skip permission check, exit when done.
+AGENT_TTY="${AGENT_TTY:-0}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 # Show the command we're about to run (no execution)
@@ -32,23 +34,29 @@ run_agent() {
     local tmp
     tmp=$(mktemp)
     printf '%s' "$prompt" > "$tmp"
-    # Pass prompt as file path (scalable; avoids stdin/argument length issues)
-    show_cmd "${AGENT_CMD} -p \"$tmp\" (prompt file) ${subs[*]}"
-    # Stream agent output (line-buffered or PTY)
-    if command -v stdbuf >/dev/null 2>&1; then
-        if [[ "$AGENT_CMD" == "agent" ]]; then
-            stdbuf -oL -eL $AGENT_CMD -p "$tmp" --trust
+    # AGENT_TTY=1: stream output, skip permission check, exit when done (claude: --dangerously-skip-permissions -p).
+    # Default: -p with stdin (no stream/echo).
+    if [[ "$AGENT_TTY" == "1" ]]; then
+        if [[ "$AGENT_CMD" == "claude" ]]; then
+            show_cmd "${AGENT_CMD} --dangerously-skip-permissions -p < <prompt_stdin> ${subs[*]}"
         else
-            stdbuf -oL -eL $AGENT_CMD -p "$tmp"
+            show_cmd "${AGENT_CMD} < <prompt_stdin> ${subs[*]}"
         fi
     else
-        if [[ "$AGENT_CMD" == "agent" ]]; then
-            script -q /dev/null $AGENT_CMD -p "$tmp" --trust
-        else
-            script -q /dev/null $AGENT_CMD -p "$tmp"
-        fi
+        show_cmd "${AGENT_CMD} -p < <prompt_stdin> ${subs[*]}"
+    fi
+    local ret=0
+    if [[ "$AGENT_CMD" == "agent" ]]; then
+        $AGENT_CMD -p "$(cat "$tmp")" --trust || ret=$?
+    elif [[ "$AGENT_TTY" == "1" ]] && [[ "$AGENT_CMD" == "claude" ]]; then
+        $AGENT_CMD --dangerously-skip-permissions -p < "$tmp" || ret=$?
+    elif [[ "$AGENT_TTY" == "1" ]]; then
+        $AGENT_CMD < "$tmp" || ret=$?
+    else
+        $AGENT_CMD -p < "$tmp" || ret=$?
     fi
     rm -f "$tmp"
+    return $ret
 }
 
 pick_discovery_batch() {
@@ -118,7 +126,7 @@ run_round() {
     show_cmd "python -u utils.py compute-metrics --round $round"
     python -u utils.py compute-metrics --round "$round"
 
-    # Step 6: Git commit and branch
+    # Step 6: Git only on success — branch first, then commit (no commit/branch on failure)
     local metrics_file="results/metrics/round_${round}.json"
     local outcome_pct triage_pct total_skills
     if [[ -f "$metrics_file" ]]; then
@@ -132,16 +140,21 @@ run_round() {
     fi
     local commit_msg="training round $round: ${outcome_pct}% outcome, ${triage_pct}% triage, ${total_skills} skills"
 
-    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        show_cmd "git add skills/ results/ && git commit -m \"$commit_msg\" && git branch training/round-$round"
-        git add skills/ results/
-        git add -f results/predictions/*.json results/evaluations/*.json results/metrics/*.json results/skill_changelog.md 2>/dev/null || true
-        git status --short skills/ results/ | grep -q . && git commit -m "$commit_msg" || true
-        git branch "training/round-$round" 2>/dev/null || true
+    # Only branch and commit when round succeeded (metrics file exists and has no error)
+    if [[ -f "$metrics_file" ]] && ! grep -q '"error"' "$metrics_file" 2>/dev/null; then
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            show_cmd "git branch training/round-$round && git add ... && git commit -m \"$commit_msg\""
+            git branch "training/round-$round" 2>/dev/null || true
+            git add skills/ results/
+            git add -f results/predictions/*.json results/evaluations/*.json results/metrics/*.json results/skill_changelog.md 2>/dev/null || true
+            git status --short skills/ results/ | grep -q . && git commit -m "$commit_msg" || true
+        fi
+    else
+        log "Skipping git (round had errors or no metrics)."
     fi
 
     log "Round $round complete. Metrics:"
-    cat "$metrics_file"
+    [[ -f "$metrics_file" ]] && cat "$metrics_file" || echo "  (none)"
 }
 
 log "Starting training: $ROUNDS rounds, batch size $BATCH_SIZE"
