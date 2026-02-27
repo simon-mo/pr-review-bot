@@ -14,6 +14,10 @@ manufacture hedging nits just to have a predicted comment.
 - One-line fixes that follow an established pattern (e.g., setting
   `quant_config=None` on gate layers)
 - Self-merges by project leads on their own infrastructure branches
+- Small, single-file optimizations with benchmarks from known contributors
+  (especially when labeled 'ready')
+- Mechanical pattern-following changes (e.g., registering new ops across files
+  following an established template)
 - Any PR where: (simple mechanical change) + (high author/reviewer authority)
   + (fast merge time) = minimal review friction
 
@@ -23,6 +27,8 @@ manufacture hedging nits just to have a predicted comment.
   their codebase; they don't ask for proof of the obvious
 - "Reviewers may ask for clarification on motivation" — when the change is
   self-evidently correct, no one asks why
+- "Reviewers may note [minor optimization concern]" — when benchmarks are
+  provided, don't manufacture performance nits on well-understood operations
 - Generic "careful reviewer" concerns that project onto a codebase where
   maintainers have high familiarity
 
@@ -34,6 +40,11 @@ positive (predicting friction that never happens). The base rate for
 substantive review comments on trivial mechanical PRs by maintainers is near
 zero.
 
+**Trust the signal fully.** When this skill activates with strong indicators
+(single-file + small diff + known contributor + benchmarks/ready label),
+predict zero comments — do not hedge with a low-severity "reviewer may note"
+suggestion. Hedging is the primary source of false alarms from this skill.
+
 ## Evidence
 
 - **PR #35189**: Predicted "reviewers may verify padding_idx is truly unused"
@@ -41,8 +52,20 @@ zero.
   raised this. (false alarm)
 - **PR #35036**: Predicted 1 clarification comment on WoosukKwon's self-merged
   infrastructure PR. Zero comments in reality. (false alarm)
+- **PR #35127**: Skill activated and helped correctly identify this as a clean
+  change from a known contributor. However, prediction still hedged with 1
+  suggestion about index_select + to('cpu'). PR received immediate
+  unconditional approval with zero inline comments. (1 false alarm from
+  hedging)
+- **PR #35123**: Skill activated and correctly predicted silent human approval.
+  Mechanical pattern-following change (registering ops) from an established
+  contributor merged with zero human comments. (perfect prediction)
 
 ## Accuracy
 
-- Activated: 0 times (retroactive pattern — would have prevented 2 false alarms)
-- Estimated impact: prevents ~1 false alarm per batch on trivial PRs
+- Activated: 4 times (PR #35036, #35189 retroactive; PR #35127, #35123 live)
+- Correct silencing: 3/4 (PR #35123 perfect; #35036, #35189 retroactive)
+- Insufficient silencing: 1/4 (PR #35127 — hedged when it should have
+  predicted zero)
+- False alarms prevented: 2 retroactive, 1 live (PR #35123)
+- False alarms from hedging: 1 (PR #35127)

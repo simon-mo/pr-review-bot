@@ -3,6 +3,17 @@
 ## Pattern
 vLLM maintainers expect even internal refactoring PRs to clearly justify their purpose and document new abstractions. Reviewers will question "what problem are we solving?" even for PRs authored by other maintainers.
 
+## Scope gate — when NOT to activate
+
+Do **not** activate this skill for:
+- Single-file changes under ~100 lines
+- Small optimizations that happen to touch existing abstractions
+- Changes that include benchmarks already addressing performance concerns
+
+This skill is for **multi-file refactors** that restructure code or introduce
+new abstractions. A +51/-15 single-file optimization is not a "large refactor"
+even if it modifies class structure.
+
 ## What to look for
 
 ### 1. Missing motivation for pure refactors
@@ -22,6 +33,10 @@ If a refactor is labeled `performance` or claims to not regress performance, rev
 ## Evidence
 - **PR #35083**: Member ywang96 asked "I'm a little bit confused by the purpose of this PR - what problem are we trying to address here?" on a 38-file refactor by fellow maintainer DarkLight1337. The author had to explain it was to simplify `InputProcessingContext` and avoid passing `ObservabilityConfig` into the MM registry.
 - **PR #35083**: Reviewer reaganjlee asked "Can you add description" on the new `TimingContext` dataclass that had no docstring.
+- **PR #35127** (negative evidence): Skill was misapplied to a +51/-15
+  single-file optimization. The PR included benchmarks, and the skill's
+  guidance about "reviewers want benchmarks" was already satisfied. Added no
+  predictive value. This motivated the scope gate above.
 
 ## Reviewer behaviors
 - **ywang96**: Questions the purpose of refactoring PRs, wants clear problem statements

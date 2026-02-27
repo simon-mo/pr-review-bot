@@ -1,0 +1,29 @@
+{
+  "pr_number": 35127,
+  "outcome_match": "correct",
+  "triage_match": "correct",
+  "comment_hits": 0,
+  "comment_misses": 0,
+  "false_alarms": 1,
+  "missed_issues": [],
+  "false_alarm_details": [
+    "Predicted a suggestion about index_select + to('cpu') creating a new index_tensor on GPU each call. In reality, no reviewer commented on this at all — the PR received zero inline code comments. The approval was immediate and unconditional."
+  ],
+  "skill_performance": {
+    "trivial_change_silence": {
+      "helped": true,
+      "false_positives": 0,
+      "missed": 0,
+      "notes": "Correctly identified this as a clean change from a known contributor that would face minimal review friction. However, the skill only 'partially' applied per the prediction — in hindsight it fully applied and should have suppressed the one predicted comment entirely."
+    },
+    "large_refactor_review_expectations": {
+      "helped": false,
+      "false_positives": 0,
+      "missed": 0,
+      "notes": "Misapplied — this was a +51/-15 single-file change, not a large refactor. The skill's main value (noting reviewers want benchmarks) was already satisfied by the PR description, so it added no predictive value. The prediction reasoning acknowledged this wasn't a large refactor but activated the skill anyway."
+    }
+  },
+  "overall_accuracy": 0.85,
+  "key_insight": "When trivial_change_silence activates for a well-benchmarked, small, single-file optimization from a known contributor with the 'ready' label, the prediction should be zero comments — not a hedged suggestion. The false alarm came from hedging ('reviewer may note...') rather than trusting the signal that this PR would sail through.",
+  "hypothesis": "The false alarm was caused by insufficient trust in the trivial_change_silence signal. When a PR is: (1) single-file, (2) small diff, (3) from a known contributor, (4) labeled 'ready', and (5) includes benchmarks — the probability of ANY substantive comment is very low (~10-15%). The model should learn to predict zero comments in these cases rather than manufacturing a low-severity suggestion to hedge. The large_refactor_review_expectations skill should not activate for changes under ~100 lines in a single file — it needs a scope gate."
+}

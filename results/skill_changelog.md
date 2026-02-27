@@ -61,3 +61,57 @@ No existing skills were activated in this batch — no changes made to:
 - **Evidence so far**: PR #34890 (predicted reviewers would question float32 upcast latency overhead; no reviewer raised this — kernel developers already know the performance characteristics of dtype conversions)
 - **Hypothesis**: In performance-critical areas (kernels, quantization), domain expert reviewers trust benchmark results without questioning well-understood overhead characteristics. Don't predict latency/overhead concerns when benchmarks are provided and the overhead mechanism is well-known.
 - **Action**: Watch for this pattern in future batches. If confirmed by 1+ more PRs, create a skill or fold into `trivial_change_silence.md`.
+
+## 2026-02-26 — Training Batch (PR #35127, PR #35123)
+
+### Batch Summary
+- **PRs evaluated**: 2 (PR #35127, PR #35123)
+- **Overall accuracy**: 0.85 average
+- **Outcome**: 2/2 correct (100%)
+- **Triage**: 2/2 correct (100%)
+- **Comment hits**: 0, **misses**: 0, **false alarms**: 1
+- **Skills activated**: `trivial_change_silence` (both PRs), `large_refactor_review_expectations` (PR #35127, misapplied)
+
+### Skill Updates
+
+**`trivial_change_silence.md`** — Strengthened with new evidence
+- Added PR #35127 and PR #35123 as evidence (first live activations)
+- Added "well-benchmarked single-file optimizations" and "mechanical
+  pattern-following changes" to trigger list
+- Added "don't manufacture performance nits when benchmarks provided" to
+  anti-patterns
+- Added explicit "trust the signal fully" calibration guidance — hedging is
+  the primary source of false alarms from this skill
+- Updated accuracy: 4 activations, 3/4 correct silencing, 1/4 insufficient
+  (hedged on PR #35127)
+- **Why**: PR #35127 showed the skill correctly identified a trivial change
+  but the prediction still hedged with a manufactured suggestion. PR #35123
+  showed the skill working perfectly for a mechanical change.
+
+**`large_refactor_review_expectations.md`** — Added scope gate
+- Added "Scope gate" section: do not activate for single-file changes under
+  ~100 lines, small optimizations, or changes with benchmarks
+- Added PR #35127 as negative evidence (misapplied to +51/-15 single-file
+  optimization)
+- **Why**: PR #35127 evaluation noted this skill was misapplied — a small
+  single-file optimization is not a "large refactor." The scope gate prevents
+  future misactivation on small changes.
+
+### Candidate Pattern Updates
+
+**"Domain experts trust benchmarks" pattern** — Additional evidence
+- PR #35127 provides partial reinforcement: well-benchmarked single-file
+  optimization from a known contributor sailed through with zero comments.
+  The false alarm was a manufactured performance nit that no reviewer raised.
+- Now has 2 PRs of evidence (PR #34890, PR #35127). However, both cases are
+  already covered by `trivial_change_silence` — this pattern may not need
+  its own skill. Keep watching; if a non-trivial PR with benchmarks also
+  gets silence on performance concerns, promote to standalone skill.
+
+### No New Skills Created
+- The missed issue in PR #35123 (missing `<torch/all.h>` header) was caught
+  by an automated bot, not a human reviewer. Since our prediction target is
+  human reviewer behavior, this doesn't warrant a new skill yet. The
+  `trivial_change_silence` skill correctly predicted zero human comments.
+- A "header/import completeness" skill could be valuable for predicting bot
+  flags, but needs more evidence (only 1 PR so far).
