@@ -1,12 +1,34 @@
 {
-  "timestamp": "2026-02-26T09:08:41.546385",
+  "timestamp": "2026-02-26T16:15:50.738409",
   "round": null,
-  "total_evaluated": 1,
+  "total_evaluated": 5,
   "outcome_accuracy": 1.0,
-  "triage_accuracy": 1.0,
-  "comment_precision": 0.0,
-  "comment_recall": 0.0,
-  "comment_f1": 0.0,
-  "skill_performance": {},
-  "total_skills": 3
+  "triage_accuracy": 0.8,
+  "comment_precision": 0.3333333333333333,
+  "comment_recall": 0.2857142857142857,
+  "comment_f1": 0.30769230769230765,
+  "skill_performance": {
+    "large_refactor_review_expectations": {
+      "helped": 1,
+      "total": 1,
+      "false_positives": 0,
+      "missed": 2,
+      "accuracy": 1.0
+    },
+    "refactoring_mechanical_errors": {
+      "helped": 0,
+      "total": 1,
+      "false_positives": 0,
+      "missed": 1,
+      "accuracy": 0.0
+    },
+    "trivial_change_silence": {
+      "helped": 1,
+      "total": 2,
+      "false_positives": 0,
+      "missed": 0,
+      "accuracy": 0.5
+    }
+  },
+  "total_skills": 6
 }

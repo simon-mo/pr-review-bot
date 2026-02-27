@@ -1,0 +1,40 @@
+{
+  "pr_number": 35042,
+  "outcome_match": "correct",
+  "triage_match": "correct",
+  "comment_hits": 1,
+  "comment_misses": 4,
+  "false_alarms": 1,
+  "missed_issues": [
+    "Naming convention: njhill immediately flagged that 'SM' is a CUDA-specific term and suggested renaming to something generic. Major discussion ensued about get_multi_processor_count vs get_num_compute_units vs num_compute_units vs compute_unit_count. Eventually settled on num_compute_units.",
+    "Scope restriction: njhill flagged that CUDA-specific files (e.g. benchmark_marlin.py) should NOT be changed to use the platform-agnostic API — it's misleading to imply cross-platform support in inherently platform-specific code. Author had to revert several files.",
+    "Cleanup old methods: njhill asked to remove the now-redundant platform_utils.get_cu_count() method and the local _get_sm_count helper in layernorm_guard.py, consolidating into a single platform_utils.num_compute_units.",
+    "Post-merge breakage: The PR broke Distributed Tests (2 GPUs) after merging, requiring a follow-up fix by LucasWilkinson. This was a mechanical error in the refactoring that reviewers didn't catch pre-merge."
+  ],
+  "false_alarm_details": [
+    "Predicted reviewers would question NotImplementedError default in base Platform class for platforms that don't override num_compute_units. No reviewer raised this concern — they were focused on naming, scope, and caching instead."
+  ],
+  "skill_performance": {
+    "large_refactor_review_expectations": {
+      "helped": true,
+      "false_positives": 0,
+      "missed": 2,
+      "notes": "Correctly predicted the PR would merge with minor revision feedback. However, missed the key pattern that reviewers of large refactors scrutinize SCOPE (which files should vs shouldn't be changed) and NAMING conventions. The skill should emphasize that reviewers of mechanical refactors focus on boundary decisions (what to include/exclude) more than correctness of the mechanical changes themselves."
+    },
+    "refactoring_mechanical_errors": {
+      "helped": false,
+      "false_positives": 0,
+      "missed": 1,
+      "notes": "The skill correctly identified risk of mechanical errors but the prediction didn't flag the actual post-merge breakage in distributed tests. The skill needs to weight multi-device/distributed code paths more heavily — mechanical replacements that work on single GPU can fail on multi-GPU."
+    },
+    "trivial_change_silence": {
+      "helped": false,
+      "false_positives": 0,
+      "missed": 0,
+      "notes": "This skill incorrectly activated. The PR was NOT trivial — it was a 24-file refactor with significant design decisions about naming, scope, and caching. The 'ready' label was misleading; this PR generated extensive review discussion across multiple rounds over 3 days. The skill should have a stronger gate: ready label + large diff = not trivial."
+    }
+  },
+  "overall_accuracy": 0.4,
+  "key_insight": "For platform abstraction refactors, reviewers focus primarily on API naming conventions and scope boundaries (which code should use the new abstraction vs keep the old platform-specific API) rather than on correctness or default behavior. The biggest miss was not predicting the naming discussion — in a PR that introduces a new cross-platform interface, the name IS the main review topic.",
+  "hypothesis": "The prediction model over-indexes on code correctness concerns (NotImplementedError, caching strategy) and under-indexes on API design concerns (naming, scope). For refactoring PRs that introduce new abstractions, reviewers care most about: (1) what the API is called, (2) where the boundary is between platform-agnostic and platform-specific code, and (3) cleanup of superseded code. A new skill should capture: 'when a PR introduces a new abstraction layer, predict naming discussion and scope boundary discussion as the primary review topics.' Additionally, the trivial_change_silence skill needs better gating — a 24-file refactor is never trivial regardless of labels."
+}
