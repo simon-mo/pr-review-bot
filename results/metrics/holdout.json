@@ -1,19 +1,26 @@
 {
-  "timestamp": "2026-02-26T16:15:50.738409",
+  "timestamp": "2026-02-26T16:35:23.212636",
   "round": null,
-  "total_evaluated": 5,
+  "total_evaluated": 9,
   "outcome_accuracy": 1.0,
-  "triage_accuracy": 0.8,
-  "comment_precision": 0.3333333333333333,
+  "triage_accuracy": 0.8888888888888888,
+  "comment_precision": 0.2857142857142857,
   "comment_recall": 0.2857142857142857,
-  "comment_f1": 0.30769230769230765,
+  "comment_f1": 0.2857142857142857,
   "skill_performance": {
+    "trivial_change_silence": {
+      "helped": 5,
+      "total": 6,
+      "false_positives": 0,
+      "missed": 0,
+      "accuracy": 0.8333333333333334
+    },
     "large_refactor_review_expectations": {
       "helped": 1,
-      "total": 1,
+      "total": 2,
       "false_positives": 0,
       "missed": 2,
-      "accuracy": 1.0
+      "accuracy": 0.5
     },
     "refactoring_mechanical_errors": {
       "helped": 0,
@@ -21,14 +28,7 @@
       "false_positives": 0,
       "missed": 1,
       "accuracy": 0.0
-    },
-    "trivial_change_silence": {
-      "helped": 1,
-      "total": 2,
-      "false_positives": 0,
-      "missed": 0,
-      "accuracy": 0.5
     }
   },
-  "total_skills": 6
+  "total_skills": 7
 }
